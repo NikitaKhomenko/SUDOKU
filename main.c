@@ -19,13 +19,14 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]);
 int init_process(int i, int fd[PIPE_NUM][2]);
 void read_from_terminal_and_write_to_fd(int fd[PIPE_NUM][2]);
 void read_from_file_and_write_to_fd(char *filename, int fd[PIPE_NUM][2]);
-void check_sudoku();
+void check_sudoku(int fd[PIPE_NUM][2]);
+int readFromResultPipe(int fd[2]);
 
 int main(int argc, char *argv[]) {
     pid_t process[PROCESS_NUM];
     int fd[PIPE_NUM][2];
     int choice;
-    char* filePath = "/home/nikita/CLionProjects/soduku_check/wrong1";
+    char* filePath = "/home/nikita/CLionProjects/soduku_check/demo.txt";
 
     //init pipe for each file
     for (int i = 0; i < PIPE_NUM; ++i) {
@@ -56,7 +57,7 @@ int main(int argc, char *argv[]) {
 
     fork_and_assign(process, fd);
 
-    check_sudoku();
+    check_sudoku(fd);
 
     return 0;
 }
@@ -82,8 +83,10 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
 }
 
 int init_process(int i, int fd[PIPE_NUM][2]){
-    char* execFile = "checkMatrix";
+    char* execFile = "/home/nikita/CLionProjects/my_module/checkMatrix";
     char* part_to_check;
+    char fdRead[10], fdWrite[10];
+
     if (i == 0) {
         part_to_check = "rows";
     } else if (i == 1) {
@@ -95,10 +98,10 @@ int init_process(int i, int fd[PIPE_NUM][2]){
     close(fd[i][1]);
     close(fd[PIPE_NUM-1][1]);
     close(fd[PIPE_NUM-1][0]);
-    dup2(fd[i][0], STDIN_FILENO);
-    dup2(fd[PIPE_NUM-1][1], STDIN_FILENO);
+    sprintf(fdRead,"%d",fd[i][0]);
+    sprintf(fdWrite,"%d",fd[PIPE_NUM-1][1]);
 
-    char* args[] = {execFile, part_to_check, NULL};
+    char* args[] = {execFile, part_to_check, fdRead, fdWrite,  NULL};
     return execvp(args[0], args);
 }
 
@@ -141,28 +144,31 @@ void read_from_terminal_and_write_to_fd(int fd[PIPE_NUM][2]){
     }
 
     for (int i = 0; i < PROCESS_NUM; ++i){
-        write (fd[i][0], mat, MAT_SIZE * MAT_SIZE * sizeof(int));
+        write (fd[i][1], mat, MAT_SIZE * MAT_SIZE * sizeof(int));
         close(fd[i][0]);
         close(fd[i][1]);
     }
 }
 
-void check_sudoku() {
-    char buf[256];
-    int answer1, answer2, answer3;
-
+void check_sudoku(int fd[PIPE_NUM][2]) {
     // Read children answers
-    if (fgets(buf, sizeof(buf), stdin) == NULL) {
-        fprintf(stderr, "Illegal answer from children.\n");
-        exit(1);
-    }
+    int result = readFromResultPipe(fd[2]);//Getting the results checks from children
 
-    sscanf(buf, "%d%d%d", &answer1, &answer2, &answer3);
-    int sudoku = answer1 + answer2 + answer3;
-
-    if (sudoku == 3){
+    if (result == 3){
         printf("\nFILENAME is legal\n");
     } else {
         printf("\nFILENAME is not legal\n");
     }
+}
+
+int readFromResultPipe(int fd[2]) {
+    int i, result = 0, tmp = 0;
+    for (i = 0; i < PROCESS_NUM; i++) {
+        read(fd[0], &tmp, sizeof(int));
+        if (tmp > 0)
+            result++;
+    }
+    close(fd[1]);	//Close write end of the children pipe
+    close(fd[0]);
+    return result;
 }
