@@ -1,15 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/wait.h>
-#include <fcntl.h>
-
-#include <netinet/tcp.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <netdb.h>
 
 #define MAT_SIZE 9
 #define PIPE_NUM 4
@@ -19,19 +12,22 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]);
 int init_process(int i, int fd[PIPE_NUM][2]);
 void read_from_terminal_and_write_to_fd(int fd[PIPE_NUM][2]);
 void read_from_file_and_write_to_fd(char *filename, int fd[PIPE_NUM][2]);
-void check_sudoku(int fd[PIPE_NUM][2]);
-int readFromResultPipe(int fd[2]);
+void check_sudoku(int fd[PIPE_NUM][2], char* filePath);
+int read_from_result_pipe(int fd);
+void print_matrix(int** mat);
+void writeToPipe(int fd, int** matrix);
 
 int main(int argc, char *argv[]) {
     pid_t process[PROCESS_NUM];
     int fd[PIPE_NUM][2];
     int choice;
-    char* filePath = "/home/nikita/CLionProjects/soduku_check/demo.txt";
+    char* filePath = "/home/nikita/CLionProjects/my_module/demo.txt";
 
     //init pipe for each file
     for (int i = 0; i < PIPE_NUM; ++i) {
         if (pipe(fd[i]) == -1) {
-            fprintf(stderr, "Pipe failed");
+            perror("pipe");
+            exit(EXIT_FAILURE);
         } else {
             printf("fd %d: %d , %d   ", i, fd[i][0], fd[i][1]);
         }
@@ -57,7 +53,11 @@ int main(int argc, char *argv[]) {
 
     fork_and_assign(process, fd);
 
-    check_sudoku(fd);
+    for (int i = 0; i < PROCESS_NUM; i++) {
+        wait(NULL);
+    }
+
+    check_sudoku(fd, filePath);
 
     return 0;
 }
@@ -67,16 +67,19 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
         process[i] = fork();
 
         if (process[i] < 0) {
-            fprintf(stderr, "fork failed\n");
-            exit(1);
+            perror("fork");
+            exit(EXIT_FAILURE);
 
         } else if (process[i] == 0) {
+            close(fd[i][1]);  // tried without it, didn't work either
+        //    printf("process %d launch\n", getpid());
             if(init_process(i, fd) == -1){
                 fprintf(stderr, "Init process failed.");
                 exit(1);
             }
 
         } else {
+         //   close(fd[i][0]); // tried without it, didn't work either
             continue;
         }
     }
@@ -85,7 +88,7 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
 int init_process(int i, int fd[PIPE_NUM][2]){
     char* execFile = "/home/nikita/CLionProjects/my_module/checkMatrix";
     char* part_to_check;
-    char fdRead[10], fdWrite[10];
+    char fdRead[12], fdWrite[12];
 
     if (i == 0) {
         part_to_check = "rows";
@@ -95,80 +98,103 @@ int init_process(int i, int fd[PIPE_NUM][2]){
         part_to_check = "subMat";
     }
 
-    close(fd[i][1]);
-    close(fd[PIPE_NUM-1][1]);
-    close(fd[PIPE_NUM-1][0]);
-    sprintf(fdRead,"%d",fd[i][0]);
-    sprintf(fdWrite,"%d",fd[PIPE_NUM-1][1]);
+    sprintf(fdRead,"%i",fd[i][0]);
+    sprintf(fdWrite,"%i",fd[PIPE_NUM-1][1]);
 
     char* args[] = {execFile, part_to_check, fdRead, fdWrite,  NULL};
     return execvp(args[0], args);
 }
 
 void read_from_file_and_write_to_fd(char *filename, int fd[PIPE_NUM][2]){
-    int **mat = (int **)malloc(MAT_SIZE * sizeof(int*));
-    for(int i = 0; i < MAT_SIZE; ++i)
-        mat[i] = (int *)malloc(MAT_SIZE * sizeof(int));
+    int i, j;
+    int **mat = (int **) malloc(MAT_SIZE * sizeof(int*));
+    for (i = 0; i < MAT_SIZE; ++i)
+        mat[i] = (int *) malloc(MAT_SIZE * sizeof(int));
+    char c;
 
     FILE *file;
     file = fopen(filename, "r");
     if (file == NULL)
         fprintf(stderr, "File is missing.");
 
-    for (int i = 0; i < MAT_SIZE; ++i) {
-        for(int j = 0; j < MAT_SIZE; ++j) {
-            fscanf(file, "%d", &mat[i][j]);
+    for (i = 0; i < MAT_SIZE; ++i) {
+        for (j = 0; j < MAT_SIZE; ++j) {
+            fscanf(file, "%d%c", &mat[i][j], &c);
         }
     }
 
+    print_matrix(mat);
+
     fclose(file);
-    for (int i = 0; i < PROCESS_NUM; ++i){
-        write (fd[i][1], mat, MAT_SIZE * MAT_SIZE * sizeof(int));
-        close(fd[i][0]);
+
+    for (i = 0; i < PROCESS_NUM; ++i) {
+        writeToPipe(fd[i][1], mat);
         close(fd[i][1]);
     }
 }
 
 void read_from_terminal_and_write_to_fd(int fd[PIPE_NUM][2]){
+    int i, j;
     int **mat = (int **)malloc(MAT_SIZE * sizeof(int*));
-    for(int i = 0; i < MAT_SIZE; ++i)
+    for(i = 0; i < MAT_SIZE; ++i)
         mat[i] = (int *)malloc(MAT_SIZE * sizeof(int));
+    char c;
 
 
-    for(int i = 0; i < MAT_SIZE; ++i) {
+    for(i = 0; i < MAT_SIZE; ++i) {
         printf("\nEnter row number %d (num by num):\n", i+1);
 
-        for(int j = 0; j < MAT_SIZE; ++j) {
-            scanf("%d", &mat[i][j]);
+        for(j = 0; j < MAT_SIZE; ++j) {
+            scanf("%d%c", &mat[i][j], &c);
         }
     }
 
-    for (int i = 0; i < PROCESS_NUM; ++i){
-        write (fd[i][1], mat, MAT_SIZE * MAT_SIZE * sizeof(int));
-        close(fd[i][0]);
+    print_matrix(mat);
+
+    for (i = 0; i < PROCESS_NUM; ++i) {
+        writeToPipe(fd[i][1], mat);
         close(fd[i][1]);
     }
 }
 
-void check_sudoku(int fd[PIPE_NUM][2]) {
-    // Read children answers
-    int result = readFromResultPipe(fd[2]);//Getting the results checks from children
-
-    if (result == 3){
-        printf("\nFILENAME is legal\n");
-    } else {
-        printf("\nFILENAME is not legal\n");
+void writeToPipe(int fd, int **matrix) {
+    int i, j;
+    for (i = 0; i < MAT_SIZE; ++i) {
+        for (j = 0; j < MAT_SIZE; ++j) {
+            write(fd, &matrix[i][j], sizeof(int));
+        }
     }
 }
 
-int readFromResultPipe(int fd[2]) {
+void check_sudoku(int fd[PIPE_NUM][2], char *filePath) {
+    // Read children answers
+    int result = read_from_result_pipe(fd[PIPE_NUM - 1][0]); //Getting the results checks from children - Syntax ERROR
+
+    if (result == 3) {
+        printf("\nSudoku at file '%s' is legal\n", filePath);
+    } else {
+        printf("\nSudoku at file '%s' is not legal\n", filePath);
+    }
+}
+
+int read_from_result_pipe(int fd) {
     int i, result = 0, tmp = 0;
     for (i = 0; i < PROCESS_NUM; i++) {
-        read(fd[0], &tmp, sizeof(int));
+        read(fd, &tmp, sizeof(int));
+//        printf("result: %d\n", tmp);
         if (tmp > 0)
             result++;
     }
-    close(fd[1]);	//Close write end of the children pipe
-    close(fd[0]);
+    close(fd);
     return result;
+}
+
+void print_matrix(int** mat) {
+    printf("\nYour matrix is:\n");
+    for (int i = 0; i < MAT_SIZE; i++) {
+        for (int j = 0; j < MAT_SIZE; j++)
+            printf("%d ", mat[i][j]);
+        printf("\n");
+    }
+    printf("\n");
 }
