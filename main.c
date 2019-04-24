@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     pid_t process[PROCESS_NUM];
     int fd[PIPE_NUM][2];
     int choice;
-    char* filePath = "/home/nikita/CLionProjects/my_module/demo.txt";
+    char* filePath; // = "/home/nikita/CLionProjects/my_module/demo.txt"; // debugging purposes 
 
     //init pipe for each file
     for (int i = 0; i < PIPE_NUM; ++i) {
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     switch(choice) {
         case 1 :
-      //      scanf("%s", &filePath);
+            scanf("%s", &filePath);
             read_from_file_and_write_to_fd(filePath, fd);
             break;
 
@@ -79,7 +79,6 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
             }
 
         } else {
-         //   close(fd[i][0]); // tried without it, didn't work either
             continue;
         }
     }
