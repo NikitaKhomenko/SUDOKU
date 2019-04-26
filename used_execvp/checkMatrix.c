@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
         }
     }
     close(fdRead);
-//    printf("%d done reading\n", getpid());
 
     if (strcmp(argv[1], "rows") == 0){
         check_rows(matrix);
@@ -45,7 +44,6 @@ int main(int argc, char *argv[]) {
     write(fdWrite, &result, sizeof(int));
     close(fdWrite);
 
- //   printf("Process %d done\n", getpid());
     return 0;
 }
 
@@ -57,8 +55,8 @@ int main(int argc, char *argv[]) {
 void check_rows(int matrix[MAT_SIZE][MAT_SIZE]){
     printf("checking rows\n");
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
-    for(int j = 0; j < MAT_SIZE; ++j) {
-        for (int i = 0; i < MAT_SIZE; ++i) {
+    for(int i = 0; i < MAT_SIZE; ++i) {
+        for (int j = 0; j < MAT_SIZE; ++j) {
             if (matrix[i][j] < 10 && matrix[i][j] > 0){
                 ++check_list[matrix[i][j]-1];
             } else {
@@ -81,8 +79,8 @@ void check_cols(int matrix[MAT_SIZE][MAT_SIZE]){
     printf("checking cols\n");
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-        for(int i = 0; i < MAT_SIZE; ++i) {
-            for (int j = 0; j < MAT_SIZE; ++j) {
+        for(int j = 0; j < MAT_SIZE; ++j) {
+            for (int i = 0; i < MAT_SIZE; ++i) {
                 if (matrix[i][j] < 10 && matrix[i][j] > 0){
                     ++check_list[matrix[i][j]-1];
                 } else {

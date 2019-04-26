@@ -16,12 +16,13 @@ void check_sudoku(int fd[PIPE_NUM][2], char* filePath);
 int read_from_result_pipe(int fd);
 void print_matrix(int** mat);
 void writeToPipe(int fd, int** matrix);
+void wait_for_children();
 
 int main(int argc, char *argv[]) {
     pid_t process[PROCESS_NUM];
     int fd[PIPE_NUM][2];
     int choice;
-    char* filePath; // = "/home/nikita/CLionProjects/my_module/demo.txt"; // debugging purposes 
+    char* filePath; // "/home/nikita/CLionProjects/my_module/demo.txt"; // debugging purposes
 
     //init pipe for each file
     for (int i = 0; i < PIPE_NUM; ++i) {
@@ -52,11 +53,7 @@ int main(int argc, char *argv[]) {
     }
 
     fork_and_assign(process, fd);
-
-    for (int i = 0; i < PROCESS_NUM; i++) {
-        wait(NULL);
-    }
-
+    wait_for_children();
     check_sudoku(fd, filePath);
 
     return 0;
@@ -71,8 +68,7 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
             exit(EXIT_FAILURE);
 
         } else if (process[i] == 0) {
-            close(fd[i][1]);  // tried without it, didn't work either
-        //    printf("process %d launch\n", getpid());
+            close(fd[i][1]);
             if(init_process(i, fd) == -1){
                 fprintf(stderr, "Init process failed.");
                 exit(1);
@@ -180,7 +176,6 @@ int read_from_result_pipe(int fd) {
     int i, result = 0, tmp = 0;
     for (i = 0; i < PROCESS_NUM; i++) {
         read(fd, &tmp, sizeof(int));
-//        printf("result: %d\n", tmp);
         if (tmp > 0)
             result++;
     }
@@ -196,4 +191,10 @@ void print_matrix(int** mat) {
         printf("\n");
     }
     printf("\n");
+}
+
+void wait_for_children(){
+    for (int i = 0; i < PROCESS_NUM; i++) {
+        wait(NULL);
+    }
 }
