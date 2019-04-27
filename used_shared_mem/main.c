@@ -31,38 +31,26 @@ void wait_for_children();
 int main(int argc, char *argv[]) {
     int matrix[MAT_SIZE][MAT_SIZE];
     pid_t process[PROCESS_NUM];
-    int choice;
-    int* addr;
-    char* filePath; // "/home/nikita/CLionProjects/my_module/demo.txt"; // debugging purposes
+    char* filePath;
 
     SHARED *shared_struct_obj = mmap(NULL, MEM_LENGTH, PROT_READ | PROT_WRITE,
                                      MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    if (addr == MAP_FAILED) {
+    if (shared_struct_obj == MAP_FAILED) {
         perror("Mmap failed\n");
         exit(EXIT_FAILURE);
     }
 
-    printf("\nEnter you're choice of input, 1 - file, 2 - terminal: ");
-    scanf("%d", &choice);
-
-    switch(choice) {
-        case 1 :
-            scanf("%s", &filePath);
-            read_from_file_and_write_matrix(matrix, filePath, shared_struct_obj);
-            break;
-
-        case 2 :
-            read_from_terminal_and_write_matrix(matrix, shared_struct_obj);
-            break;
-
-        default :
-            printf("Wrong input.");
-            break;
+    if(argv[1] != NULL){
+        filePath = argv[1];
+        read_from_file_and_write_matrix(matrix, filePath, shared_struct_obj);
+    } else {
+        read_from_terminal_and_write_matrix(matrix, shared_struct_obj);
     }
 
     fork_and_assign(process, shared_struct_obj);
     wait_for_children();
     check_sudoku(filePath, shared_struct_obj);
+    munmap(shared_struct_obj, MEM_LENGTH);
 
     return 0;
 }
