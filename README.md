@@ -8,11 +8,13 @@ The puzzle setter provides a partially completed grid, which for a well-posed pu
 
 The app's purpose is to decide if a given matrix is valid sudoku solution.
 
-<h5> Instructions: </h5>
+<h4> Instructions: </h4>
 Open linux terminal in the relevant directory.
 Type: gcc -o sudoku main.c (this will produce a program called sudoku)
 To run it: ./sudoku <filename> (filname [optional] - a text file with a sudoku matrix)
 if no file was given you will have to type in the matrix num by num inside the terminal.
+
+
 
 <h6> used_pipes_execvp </h6>
 Uses 3 child prcesses and a pipe for each one to send them the data, execvp to run a another app on each one.
