@@ -1,4 +1,4 @@
-<h1> SUDOKU </h1>
+# SUDOKU 
 <h3> A multi process sudoku checking program. </h3>
 
 Sudoku is a logic-based, combinatorial number-placement puzzle. 
