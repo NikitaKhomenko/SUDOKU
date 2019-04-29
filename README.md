@@ -14,7 +14,7 @@ Type: gcc -o sudoku main.c (this will produce a program called sudoku)
 To run it: ./sudoku <filename> (filname [optional] - a text file with a sudoku matrix)
 if no file was given you will have to type in the matrix num by num inside the terminal.
 
-<h6> ---------------------------------------------------------------------------------------------------------- </h6>
+<h1> </h1>
 
 <h6> used_pipes_execvp </h6>
 Uses 3 child prcesses and a pipe for each one to send them the data, execvp to run another app on each one.
