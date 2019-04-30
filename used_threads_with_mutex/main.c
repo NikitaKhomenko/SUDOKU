@@ -20,9 +20,9 @@ void fork_and_assign(pthread_t pthread_mat_checker[NUM_THREAD], DATA *shared_dat
 void read_from_terminal_and_write_matrix(int matrix[MAT_SIZE][MAT_SIZE], DATA *shared_data);
 void read_from_file_and_write_matrix(int matrix[MAT_SIZE][MAT_SIZE], char *filename, DATA *shared_data);
 void check_sudoku(char* filePath);
-int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE]);
-int check_cols(int index, int matrix[MAT_SIZE][MAT_SIZE]);
-int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE]);
+int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id);
+int check_cols(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id);
+int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id);
 void print_matrix(int matrix[MAT_SIZE][MAT_SIZE]);
 void decide_offset(int *y_offset, int *x_offset, int subMat);
 void join_threads(pthread_t pthread_mat_checker[NUM_THREAD]);
@@ -30,7 +30,7 @@ void* ThreadEntry(void * argShared);
 
 static int result = 1;  // check result, shared by all threads
 static int done = 0;    // signals when done checking matrix, turn to 1 upon data finish or result turned to 0
-static int assignment_index = 0; // concurrent data to check
+static int assignment_index = -1; // concurrent data to check
 pthread_mutex_t mutex_result = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_done = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_assignment_index = PTHREAD_MUTEX_INITIALIZER;
@@ -42,17 +42,19 @@ void* ThreadEntry(void * argShared) {
     int assignment_result = 1;
 
     while (done == 0){
-        pthread_mutex_lock( &mutex_assignment_index );
-
         if (result == 1){
+            pthread_mutex_lock( &mutex_assignment_index );
+            ++assignment_index;
+            pthread_mutex_unlock( &mutex_assignment_index );
+
             if (assignment_index < 9){
-                assignment_result = check_rows(assignment_index, shared_data->solution);
+                assignment_result = check_rows(assignment_index, shared_data->solution, thread_id);
 
             } else if (assignment_index >= 9 && assignment_index < 18) {
-                assignment_result = check_cols(assignment_index - 9, shared_data->solution);
+                assignment_result = check_cols(assignment_index - 9, shared_data->solution, thread_id);
 
             } else if (assignment_index >= 9 && assignment_index < 27) {
-                assignment_result = check_subMat(assignment_index - 18, shared_data->solution);
+                assignment_result = check_subMat(assignment_index - 18, shared_data->solution, thread_id);
 
             } else {
                 pthread_mutex_lock( &mutex_done );
@@ -62,7 +64,7 @@ void* ThreadEntry(void * argShared) {
                 printf( "\n[thread %d] had no data left to calculate. closing\n", thread_id);
 
             }
-            printf( "\n[thread %d] done calculating data num %d.\n", thread_id, assignment_index-1);
+            printf( "\n[thread %d] done calculating assignment num %d.\n", thread_id, assignment_index-1);
 
         } else { // if (result == 0)
             pthread_mutex_lock( &mutex_done );
@@ -73,8 +75,7 @@ void* ThreadEntry(void * argShared) {
 
         }
 
-        ++assignment_index;
-        pthread_mutex_unlock( &mutex_assignment_index );
+
 
         // we're going to manipulate done and use the cond, so we need the mutex
         pthread_mutex_lock( &mutex_result );
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
     pthread_t pthread_mat_checker[NUM_THREAD];
     DATA shared_assignment;
 
-    char* filePath; // "/home/nikita/CLionProjects/my_module/demos/wrong1"; // debugging purposes
+    char* filePath; // = "/home/nikita/CLionProjects/my_module/demos/demo.txt"; // debugging purposes
 
     if(argv[1] != NULL){
         filePath = argv[1];
@@ -111,7 +112,6 @@ int main(int argc, char *argv[]) {
         pthread_cond_wait( & cond, & mutex_done );
 
         puts( "\n[thread main] wake - cond was signalled." );
-
     }
 
     pthread_mutex_unlock( & mutex_result );
@@ -196,9 +196,9 @@ void join_threads(pthread_t pthread_mat_checker[NUM_THREAD]){
 // If we find a value not in the range of 1-9 we disqualify the sudoku.
 // If after iterating through each row/col/subMat we find any indexA in the checklist that it's not 1 we disqualify the sudoku.
 
-int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE]){
+int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id){
     int row = index;
-    printf("\nchecking row #%i", row);
+    printf("\n[thread %i] checking row #%i", thread_id, row);
 
     int result = 1;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -218,13 +218,13 @@ int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE]){
         }
         check_list[k] = 0;
     }
-    printf("   row #%i result: %i", row, result);
+    printf("   \n[thread %i] row #%i result: %i",thread_id,  row, result);
     return result;
 }
 
-int check_cols(int index, int matrix[MAT_SIZE][MAT_SIZE]){
+int check_cols(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id){
     int col = index;
-    printf("\nchecking col #%i", col);
+    printf("\n[thread %i] checking col #%i", thread_id, col);
 
     int result = 1;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -244,13 +244,13 @@ int check_cols(int index, int matrix[MAT_SIZE][MAT_SIZE]){
         }
         check_list[k] = 0;
     }
-    printf("   col #%i result: %i", col, result);
+    printf("   \n[thread %i] col #%i result: %i",thread_id,  col, result);
     return result;
 }
 
-int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE]){
+int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id){
     int subMat = index;
-    printf("\nchecking sub matrix #%i", subMat);
+    printf("\n[thread %i] checking subMat #%i", thread_id, subMat);
 
     int result = 1, y_offset, x_offset;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -274,7 +274,7 @@ int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE]){
             break;
         }
     }
-    printf("   subMat #%i result: %i", subMat, result);
+    printf("   \n[thread %i] subMat #%i result: %i",thread_id,  subMat, result);
     return result;
 }
 
