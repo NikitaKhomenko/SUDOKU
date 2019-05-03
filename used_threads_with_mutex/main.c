@@ -9,10 +9,15 @@
 
 #define MAT_SIZE 9
 #define NUM_THREAD 3
+#define NUM_ASSIGNMENTS (MAT_SIZE * NUM_THREAD)
 #define SOLUTION_SIZE (MAT_SIZE * MAT_SIZE * sizeof(int))
+#define ROW "row"
+#define COL "col"
+#define SUB_MATRIX "sub"
 
 typedef struct data {
     int solution[MAT_SIZE][MAT_SIZE];
+    char* assignments[NUM_ASSIGNMENTS];
 } DATA;
 
 
@@ -26,61 +31,65 @@ int check_subMat(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id);
 void print_matrix(int matrix[MAT_SIZE][MAT_SIZE]);
 void decide_offset(int *y_offset, int *x_offset, int subMat);
 void join_threads(pthread_t pthread_mat_checker[NUM_THREAD]);
+void fill_assignments(DATA *shared_assignment);
 void* ThreadEntry(void * argShared);
 
 static int result = 1;  // check result, shared by all threads
 static int done = 0;    // signals when done checking matrix, turn to 1 upon data finish or result turned to 0
-static int assignment_index = -1; // concurrent data to check
+static int assignment_index = 0; // concurrent data to check
 pthread_mutex_t mutex_result = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_done = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_assignment_index = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
+
+// Each thread picks the next assignment from the assignments list,
+// after done calculating it increments the global assignment index by 1 and moving to the next.
 void* ThreadEntry(void * argShared) {
     pid_t thread_id = (pid_t) syscall(__NR_gettid);
     DATA *shared_data = (DATA *) argShared;
-    int assignment_result = 1;
+    int assignment_result = 1, index_to_check;
+    char* area_to_check =  calloc(3, 3 * sizeof(char));
+    char* index_temp = calloc(1, sizeof(char));
 
     while (done == 0){
-        if (result == 1){
-            pthread_mutex_lock( &mutex_assignment_index );
+        if (result == 1 && assignment_index < NUM_ASSIGNMENTS ) {
+            pthread_mutex_lock(&mutex_assignment_index);
+            memmove(area_to_check, shared_data->assignments[assignment_index], 3 * sizeof(char));
+            memmove(index_temp, shared_data->assignments[assignment_index] + 4, sizeof(char));
+            index_to_check = atoi(index_temp);
             ++assignment_index;
-            pthread_mutex_unlock( &mutex_assignment_index );
+            pthread_mutex_unlock(&mutex_assignment_index);
 
-            if (assignment_index < 9){
-                assignment_result = check_rows(assignment_index, shared_data->solution, thread_id);
+            if (strcmp(area_to_check, ROW) == 0) {
+                assignment_result = check_rows(index_to_check, shared_data->solution, thread_id);
 
-            } else if (assignment_index >= 9 && assignment_index < 18) {
-                assignment_result = check_cols(assignment_index - 9, shared_data->solution, thread_id);
+            } else if (strcmp(area_to_check, COL) == 0) {
+                assignment_result = check_cols(index_to_check, shared_data->solution, thread_id);
 
-            } else if (assignment_index >= 9 && assignment_index < 27) {
-                assignment_result = check_subMat(assignment_index - 18, shared_data->solution, thread_id);
-
-            } else {
-                pthread_mutex_lock( &mutex_done );
-                done = 1;
-                pthread_cond_signal( &cond );
-                pthread_mutex_unlock( & mutex_done );
-                printf( "\n[thread %d] had no data left to calculate. closing\n", thread_id);
+            } else if (strcmp(area_to_check, SUB_MATRIX) == 0) {
+                assignment_result = check_subMat(index_to_check, shared_data->solution, thread_id);
 
             }
-            printf( "\n[thread %d] done calculating assignment num %d.\n", thread_id, assignment_index-1);
+            printf("\n[thread %d] done calculating assignment : %s %d\n", thread_id, area_to_check, index_to_check);
 
-        } else { // if (result == 0)
-            pthread_mutex_lock( &mutex_done );
+        } else {
+            pthread_mutex_lock(&mutex_done);
             done = 1;
-            pthread_cond_signal( &cond );
-            pthread_mutex_unlock( &mutex_done );
-            printf( "\n[thread %d] had no data left to calculate. closing\n", thread_id);
+            pthread_cond_signal(&cond);
+            pthread_mutex_unlock(&mutex_done);
+            printf("\n[thread %d] had no data left to calculate. closing\n", thread_id);
 
         }
 
-
-
         // we're going to manipulate done and use the cond, so we need the mutex
-        pthread_mutex_lock( &mutex_result );
-        result = assignment_result;
-        pthread_mutex_unlock( &mutex_result );
+        if (assignment_result == 0){
+            pthread_mutex_lock( &mutex_result );
+            result = assignment_result;
+            done = 1;
+            pthread_cond_signal( &cond );
+            pthread_mutex_unlock( &mutex_result );
+        }
     }
 
 }
@@ -91,18 +100,19 @@ void* ThreadEntry(void * argShared) {
 int main(int argc, char *argv[]) {
     int matrix[MAT_SIZE][MAT_SIZE];
     pthread_t pthread_mat_checker[NUM_THREAD];
-    DATA shared_assignment;
+    DATA shared_data;
 
-    char* filePath; // = "/home/nikita/CLionProjects/my_module/demos/demo.txt"; // debugging purposes
+    char* filePath; //  ="/home/nikita/CLionProjects/my_module/demos/wrong2"; // debugging purposes
 
     if(argv[1] != NULL){
         filePath = argv[1];
-        read_from_file_and_write_matrix(matrix, filePath, &shared_assignment);
+        read_from_file_and_write_matrix(matrix, filePath, &shared_data);
     } else {
-        read_from_terminal_and_write_matrix(matrix, &shared_assignment);
+        read_from_terminal_and_write_matrix(matrix, &shared_data);
     }
 
-    fork_and_assign(pthread_mat_checker, &shared_assignment);
+    fill_assignments(&shared_data);
+    fork_and_assign(pthread_mat_checker, &shared_data);
 
     // are the other threads still busy?
     while( done == 0 ) {
@@ -115,10 +125,35 @@ int main(int argc, char *argv[]) {
     }
 
     pthread_mutex_unlock( & mutex_result );
-    check_sudoku(filePath);
     join_threads(pthread_mat_checker);
+    check_sudoku(filePath);
 
     return 0;
+}
+
+void fill_assignments(DATA *shared_data){
+    int i;
+    char num_as_string[1];
+
+    for (i = 0; i < NUM_ASSIGNMENTS; ++i) {
+        shared_data->assignments[i] = malloc(6 * sizeof(char));
+    }
+
+    for (i  = 0; i < NUM_ASSIGNMENTS; ++i) {
+        if (i < MAT_SIZE){
+            strcpy(shared_data->assignments[i], ROW);
+
+        } else if (i >= MAT_SIZE && i < MAT_SIZE * 2) {
+            strcpy(shared_data->assignments[i], COL);
+
+        } else {
+            strcpy(shared_data->assignments[i], SUB_MATRIX);
+
+        }
+        sprintf(num_as_string, "%i", i%9);
+        strcat(shared_data->assignments[i], " ");
+        strcat(shared_data->assignments[i], num_as_string);
+    }
 }
 
 void fork_and_assign(pthread_t pthread_mat_checker[NUM_THREAD], DATA *shared_data) {
@@ -187,6 +222,8 @@ void join_threads(pthread_t pthread_mat_checker[NUM_THREAD]){
         pthread_join (pthread_mat_checker[i], NULL);
     }
 }
+
+
 
 
 
