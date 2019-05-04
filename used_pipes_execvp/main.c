@@ -21,8 +21,7 @@ void wait_for_children();
 int main(int argc, char *argv[]) {
     pid_t process[PROCESS_NUM];
     int fd[PIPE_NUM][2];
-    int choice;
-    char* filePath; // "/home/nikita/CLionProjects/my_module/demo.txt"; // debugging purposes
+    char* filePath;
 
     //init pipe for each file
     for (int i = 0; i < PIPE_NUM; ++i) {
@@ -34,22 +33,11 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("\nEnter you're choice of input, 1 - file, 2 - terminal: ");
-    scanf("%d", &choice);
-
-    switch(choice) {
-        case 1 :
-            scanf("%s", &filePath);
-            read_from_file_and_write_to_fd(filePath, fd);
-            break;
-
-        case 2 :
-            read_from_terminal_and_write_to_fd(fd);
-            break;
-
-        default :
-            printf("Wrong input.");
-            break;
+    if(argv[1] != NULL){
+        filePath = argv[1];
+        read_from_file_and_write_to_fd(filePath, fd);
+    } else {
+        read_from_terminal_and_write_to_fd(fd);
     }
 
     fork_and_assign(process, fd);
@@ -81,7 +69,7 @@ void fork_and_assign(pid_t *process, int fd[PIPE_NUM][2]){
 }
 
 int init_process(int i, int fd[PIPE_NUM][2]){
-    char* execFile = "/home/nikita/CLionProjects/my_module/checkMatrix";
+    char* execFile = "./checkMatrix"; // should be locally
     char* part_to_check;
     char fdRead[12], fdWrite[12];
 

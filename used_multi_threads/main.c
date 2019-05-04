@@ -17,7 +17,7 @@ typedef struct gameState {
 
 typedef struct shared {
     GAMESTATE* gameState_to_share;
-    int indexA;
+    int index;
 } SHARED;
 
 
@@ -38,30 +38,16 @@ int main(int argc, char *argv[]) {
     pthread_t thread_cols[MAT_SIZE];
     pthread_t thread_subMat[MAT_SIZE];
     GAMESTATE shared_gameState;
-    int choice;
-    char* filePath; // = "/home/nikita/CLionProjects/my_module/demos/wrong1"; // debugging purposes
+    char* filePath;
 
-
-    printf("\n Enter you're choice of input, 1 - file, 2 - terminal: ");
-    scanf("%d", &choice);
-
-    switch(choice) {
-        case 1 :
-            scanf("%s", &filePath);
-            read_from_file_and_write_matrix(matrix, filePath, &shared_gameState);
-            break;
-
-        case 2 :
-            read_from_terminal_and_write_matrix(matrix, &shared_gameState);
-            break;
-
-        default :
-            printf("Wrong input.");
-            break;
+    if(argv[1] != NULL){
+        filePath = argv[1];
+        read_from_file_and_write_matrix(matrix, filePath, &shared_gameState);
+    } else {
+        read_from_terminal_and_write_matrix(matrix, &shared_gameState);
     }
 
     fork_and_assign(thread_rows, thread_cols, thread_subMat, &shared_gameState);
-//    wait_for_children(thread_rows, thread_cols, thread_subMat);
     check_sudoku(filePath, &shared_gameState);
 
     return 0;
@@ -157,15 +143,15 @@ void print_matrix(int matrix[MAT_SIZE][MAT_SIZE]) {
 }
 
 
-// The algorithm: we keep a checking list, each value in the row/col/subMat represent an indexA in the checklist.
-// We move through each row/col/subMat and upgrade the indexA in the checklist accordingly.
+// The algorithm: we keep a checking list, each value in the row/col/subMat represent an index in the checklist.
+// We move through each row/col/subMat and upgrade the index in the checklist accordingly.
 // If we find a value not in the range of 1-9 we disqualify the sudoku.
-// If after iterating through each row/col/subMat we find any indexA in the checklist that it's not 1 we disqualify the sudoku.
+// If after iterating through each row/col/subMat we find any index in the checklist that it's not 1 we disqualify the sudoku.
 
 void *check_rows(void * argShared){
     SHARED *shared_data = (SHARED *) argShared;
-    int row = shared_data->indexA;
-    printf("\nchecking row #%i", row);
+    int row = shared_data->index;
+//    printf("\nchecking row #%i", row);
 
     int result = 1;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -186,15 +172,15 @@ void *check_rows(void * argShared){
         }
         check_list[k] = 0;
     }
-    printf("   row #%i result: %i", row, result);
+//    printf("   row #%i result: %i", row, result);
     shared_data->gameState_to_share->status_rows[row] = result;
     pthread_exit (NULL);
 }
 
 void *check_cols(void * argShared){
     SHARED *shared_data = (SHARED *) argShared;
-    int col = shared_data->indexA;
-    printf("\nchecking col #%i", col);
+    int col = shared_data->index;
+//    printf("\nchecking col #%i", col);
 
     int result = 1;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -214,15 +200,15 @@ void *check_cols(void * argShared){
         }
         check_list[k] = 0;
     }
-    printf("   col #%i result: %i", col, result);
+//    printf("   col #%i result: %i", col, result);
     shared_data->gameState_to_share->status_cols[col] = result;
     pthread_exit (NULL);
 }
 
 void *check_subMat(void * argShared){
     SHARED *shared_data = (SHARED *) argShared;
-    int subMat = shared_data->indexA;
-    printf("\nchecking sub matrix #%i", subMat);
+    int subMat = shared_data->index;
+//    printf("\nchecking sub matrix #%i", subMat);
 
     int result = 1, y_offset, x_offset;
     int check_list[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -246,7 +232,7 @@ void *check_subMat(void * argShared){
             break;
         }
     }
-    printf("   subMat #%i result: %i", subMat, result);
+//    printf("   subMat #%i result: %i", subMat, result);
     shared_data->gameState_to_share->status_subMat[subMat] = result;
     pthread_exit (NULL);
 }

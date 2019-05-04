@@ -228,10 +228,10 @@ void join_threads(pthread_t pthread_mat_checker[NUM_THREAD]){
 
 
 
-// The algorithm: we keep a checking list, each value in the row/col/subMat represent an indexA in the checklist.
-// We move through each row/col/subMat and upgrade the indexA in the checklist accordingly.
+// The algorithm: we keep a checking list, each value in the row/col/subMat represent an index in the checklist.
+// We move through each row/col/subMat and upgrade the index in the checklist accordingly.
 // If we find a value not in the range of 1-9 we disqualify the sudoku.
-// If after iterating through each row/col/subMat we find any indexA in the checklist that it's not 1 we disqualify the sudoku.
+// If after iterating through each row/col/subMat we find any index in the checklist that it's not 1 we disqualify the sudoku.
 
 int check_rows(int index, int matrix[MAT_SIZE][MAT_SIZE], pid_t thread_id){
     int row = index;
