@@ -33,6 +33,7 @@ Uses 3 child processes and a shared memory.
 ### used_multi_threads
 
 Uses 3 threads. Each one is responsible for a different part.
+(Made it in sapareted files and added a makefile.)
 
 ### used_threads_with_mutex
 
