@@ -1,0 +1,3 @@
+/home/nikita/CLionProjects/sudoku_thread_mutex/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/nikita/CLionProjects/sudoku_thread_mutex/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/nikita/CLionProjects/sudoku_thread_mutex/cmake-build-debug/CMakeFiles/sudoku_thread_mutex.dir
