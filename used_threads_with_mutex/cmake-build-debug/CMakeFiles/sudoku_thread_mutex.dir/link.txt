@@ -1,1 +1,0 @@
-/usr/bin/cc -g   CMakeFiles/sudoku_thread_mutex.dir/main.c.o CMakeFiles/sudoku_thread_mutex.dir/source/mainFunc.c.o CMakeFiles/sudoku_thread_mutex.dir/source/threadFunc.c.o  -o sudoku_thread_mutex 
