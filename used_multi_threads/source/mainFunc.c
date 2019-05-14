@@ -81,15 +81,11 @@ void read_from_terminal_and_write_matrix(int matrix[MAT_SIZE][MAT_SIZE], GAMESTA
 
 void check_sudoku(char *filePath, GAMESTATE *shared_gameState) {
     int final_result = 0, i;
-    for(i = 0; i < MAT_SIZE; ++i)
+    for(i = 0; i < MAT_SIZE; ++i) {
         final_result += shared_gameState->status_rows[i];
-
-    for(i = 0; i < MAT_SIZE; ++i)
         final_result += shared_gameState->status_cols[i];
-
-    for(i = 0; i < MAT_SIZE; ++i)
         final_result += shared_gameState->status_subMat[i];
-
+    }
 
     if (final_result == 27) {
         printf("\nSudoku at file '%s' is legal\n", filePath);
