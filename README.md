@@ -39,4 +39,4 @@ Uses 3 threads. Each one is responsible for a different part.
 Uses 3 threads that are responsible for the whole test, have access to the same data.
 Synchronization was taken care with mutex and condition.
 
-(Made threads in sapareted files and added a makefile.)
+(Added a makefile for threads.)
