@@ -32,7 +32,7 @@ Uses 3 child processes and a shared memory.
 
 ### used_multi_threads
 
-Uses 3 threads. Each one is responsible for a different part.
+Uses 27 threads. Each one is responsible for a different row/col/mat.
 
 ### used_threads_with_mutex
 
